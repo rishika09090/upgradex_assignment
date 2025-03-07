@@ -16,12 +16,27 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-// Get Tasks by Category
+// Get tasks by category
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const tasks = await Task.find({ user: req.user.id }).populate("category");
-    res.json(tasks);
-  } catch (error) {
+    const { category } = req.query;
+
+    let query = { user: req.user.id };
+    if (category) {
+      query.category = category;
+    }
+
+    const tasks = await Task.find(query);
+
+    if (tasks.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No tasks found for this category" });
+    }
+
+    res.status(200).json(tasks);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Server Error" });
   }
 });
@@ -29,20 +44,50 @@ router.get("/", authMiddleware, async (req, res) => {
 // Update Task
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(task);
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const task = await Task.findOne({ _id: req.params.id, user: req.user.id });
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found or you don't have permission to update it",
+      });
+    }
+
+    const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+
+    res.json(updatedTask);
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    console.error(error);
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 });
 
 // Delete Task
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const task = await Task.findOne({ _id: req.params.id, user: req.user.id });
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found or you don't have permission to delete it",
+      });
+    }
+
     await Task.findByIdAndDelete(req.params.id);
+
     res.json({ message: "Task deleted" });
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    console.error(error);
+    res.status(500).json({ message: error.message || "Server Error" });
   }
 });
 
