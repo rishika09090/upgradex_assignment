@@ -1,9 +1,10 @@
 const express = require("express");
 const Category = require("../models/Category");
+const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.post("/", async (req, res) => {
+router.post("/",authMiddleware, async (req, res) => {
   try {
     const category = new Category(req.body);
     await category.save();
@@ -14,7 +15,7 @@ router.post("/", async (req, res) => {
 });
 
 // Get all categories
-router.get("/", authenticate, async (req, res) => {
+router.get("/", authMiddleware, async (req, res) => {
   try {
     const categories = await Category.find();
 
